@@ -18,32 +18,43 @@ class SaleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'item_name' => 'required',
-            'selling_price' => 'required|numeric',
-            'cost_price' => 'required|numeric',
+            'item_name' => 'required|string|max:255',
+            'selling_price' => 'required|numeric|min:0.01',
+            'cost_price' => 'required|numeric|min:0.01',
             'quantity' => 'required|integer|min:1',
-            'payment_method' => 'required',
-            'customer_name' => 'nullable',
-            'remaining_balance' => 'nullable|numeric',
+            'payment_method' => 'required|in:cash,credit',
+            'customer_name' => 'nullable|string|max:255',
+            'remaining_balance' => 'nullable|numeric|min:0',
         ]);
 
-        // CREDIT LOGIC
+        $totalAmount = $data['selling_price'] * $data['quantity'];
+
+        // CREDIT LOGIC - Fixed
         if ($data['payment_method'] === 'credit') {
-
-            $data['amount_owed'] = $data['selling_price'] * $data['quantity'];
-
-            $data['status'] = ($data['remaining_balance'] > 0)
-                ? 'partial'
-                : 'unpaid';
+            $data['amount_owed'] = $totalAmount;
+            
+            $remainingBalance = $data['remaining_balance'] ?? 0;
+            
+            // Determine status based on remaining balance
+            if ($remainingBalance >= $totalAmount) {
+                $data['status'] = 'paid';
+            } elseif ($remainingBalance > 0) {
+                $data['status'] = 'partial';
+            } else {
+                $data['status'] = 'unpaid';
+            }
 
             $data['last_payment_at'] = now();
+        } else {
+            // Cash sales
+            $data['status'] = 'completed';
         }
 
         Sale::create($data);
 
         return redirect()
             ->back()
-            ->with('success', 'Sale recorded successfully!');
+            ->with('success', 'Sale recorded successfully! ✅');
     }
 
     // DASHBOARD
@@ -71,6 +82,10 @@ class SaleController extends Controller
             ->where('payment_method', 'credit')
             ->sum(fn($sale) => $sale->selling_price * $sale->quantity);
 
+        $unpaidCredits = Sale::where('payment_method', 'credit')
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->sum('amount_owed');
+
         return view('dashboard', [
             'totalSales' => $totalSales,
             'totalCost' => $totalCost,
@@ -79,6 +94,7 @@ class SaleController extends Controller
             'totalItemsSold' => $totalItemsSold,
             'totalCashSales' => $totalCashSales,
             'totalCreditSales' => $totalCreditSales,
+            'unpaidCredits' => $unpaidCredits,
         ]);
     }
 
@@ -90,16 +106,20 @@ class SaleController extends Controller
             ->latest()
             ->get();
 
+        $totalUnpaid = $credits->sum('amount_owed');
+
         return view('credits.index', [
-            'credits' => $credits
+            'credits' => $credits,
+            'totalUnpaid' => $totalUnpaid,
         ]);
     }
-public function history()
-{
-    $sales = Sale::latest()->get();
 
-    return view('sales.history', [
-        'sales' => $sales
-    ]);
-}
+    public function history()
+    {
+        $sales = Sale::latest()->paginate(15);
+
+        return view('sales.history', [
+            'sales' => $sales
+        ]);
+    }
 }
