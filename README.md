@@ -159,10 +159,10 @@ Your support helps me create more educational projects like this one and maintai
 
 ## 👤 About
 
-**Author:** Ibtisam Ali Abdi
-**GitHub:** [@adventureibtisam111](https://github.com/adventureibtisam111)  
-Location: Hargeisa, Somalia
-Project Type: Learning & Portfolio
+- **Author:** Ibtisam Ali Abdi
+- **GitHub:** [@adventureibtisam111](https://github.com/adventureibtisam111)  
+- Location: Hargeisa, Somalia
+- Project Type: Learning & Portfolio
 
 ---
 
